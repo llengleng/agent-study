@@ -1,29 +1,14 @@
 import re
-import os
 from dotenv import load_dotenv
 from tools.weater_tool import get_weather
 from tools.city_tool import get_attraction
 from prompts.travel import AGENT_SYSTEM_PROMPT
-from llm.openai import OpenAICompatibleClient
+from llm.llm_client import OpenAICompatibleClient
 
 # --- 1. 加载环境变量 ---
 load_dotenv()
 
-# --- 2. 配置LLM客户端 ---
-API_KEY = os.getenv("API_KEY")
-BASE_URL = os.getenv("BASE_URL")
-MODEL_ID = os.getenv("MODEL_ID")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-
-# 设置 Tavily API Key 到环境变量
-if TAVILY_API_KEY:
-    os.environ['TAVILY_API_KEY'] = TAVILY_API_KEY
-
-llm = OpenAICompatibleClient(
-    model=MODEL_ID,
-    api_key=API_KEY,
-    base_url=BASE_URL
-)
+llm = OpenAICompatibleClient()
 
 # 将所有工具函数放入一个字典，方便后续调用
 available_tools = {
@@ -54,7 +39,8 @@ def run_travel_agent(user_prompt: str = None):
         full_prompt = "\n".join(prompt_history)
         
         # 3.2. 调用LLM进行思考
-        llm_output = llm.generate(full_prompt, system_prompt=AGENT_SYSTEM_PROMPT)
+        messages = [{"role": "system", "content": AGENT_SYSTEM_PROMPT}, {"role": "user", "content": full_prompt}]
+        llm_output = llm.think(messages)
         # 模型可能会输出多余的Thought-Action，需要截断
         match = re.search(r'(Thought:.*?Action:.*?)(?=\n\s*(?:Thought:|Action:|Observation:)|\Z)', llm_output, re.DOTALL)
         if match:
